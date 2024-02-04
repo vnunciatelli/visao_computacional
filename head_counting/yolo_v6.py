@@ -3,8 +3,6 @@ import numpy as np
 import time
 import pandas as pd
 
-# Inicializar o classificador de rostos Haar Cascade
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # Carregar o modelo YOLO pré-treinado
 net = cv2.dnn.readNet(r'C:\Users\ronaldo.pereira\Documents\2024\01-visao-computacional\head_counting\yolov4.weights', r'C:\Users\ronaldo.pereira\Documents\2024\01-visao-computacional\head_counting\yolov4.cfg')
@@ -13,26 +11,20 @@ net = cv2.dnn.readNet(r'C:\Users\ronaldo.pereira\Documents\2024\01-visao-computa
 with open(r"C:\Users\ronaldo.pereira\Documents\2024\01-visao-computacional\head_counting\coco.names", "r") as f:
     classes = f.read().strip().split("\n")
 
-# Inicializar o classificador de rostos Haar Cascade
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-
 # Inicializar a webcam
 cap = cv2.VideoCapture(0)
 
 # Definir cor verde para todas as pessoas detectadas
 green_color = (0, 255, 0)
 
-# Variáveis para contar o número de pessoas detectadas
+# Variável para contar o número de pessoas detectadas
 person_count = 0
-detection_times_faces = {}
-detection_times_objects = {}
+detection_times = {}
+start_time = None
 
 while True:
     # Ler o frame da webcam
-    ret, frame = cap.read()
-    
-    if not ret:
-        break
+    _, frame = cap.read()
 
     # Redimensionar o frame para o tamanho esperado pelo modelo YOLOv4 (608x608)
     blob = cv2.dnn.blobFromImage(frame, 1/255, (320, 320), (0, 0, 0), swapRB=True, crop=False)
@@ -69,51 +61,52 @@ while True:
                 class_ids.append(class_id)
 
                 # Atualizar o tempo de detecção para esta pessoa
-                person_id = len(detection_times_objects) + 1
-                if person_id not in detection_times_objects:
-                    detection_times_objects[person_id] = {'start_time': time.time(), 'total_exposure': 0}
+                person_id = len(detection_times) + 1
+                if person_id not in detection_times:
+                    detection_times[person_id] = {'start_time': time.time(), 'total_exposure': 0}
                 else:
-                    detection_times_objects[person_id]['total_exposure'] += time.time() - detection_times_objects[person_id]['last_detection_time']
-                detection_times_objects[person_id]['last_detection_time'] = time.time()
+                    detection_times[person_id]['total_exposure'] += time.time() - detection_times[person_id]['last_detection_time']
+                detection_times[person_id]['last_detection_time'] = time.time()
 
     # Remover pessoas não detectadas há mais de 5 segundos
     current_time = time.time()
-    outdated_ids = [person_id for person_id, detection_info in detection_times_objects.items()
+    outdated_ids = [person_id for person_id, detection_info in detection_times.items()
                     if current_time - detection_info['last_detection_time'] > 5]
     for person_id in outdated_ids:
-        del detection_times_objects[person_id]
+        del detection_times[person_id]
 
-    # Detectar rostos no frame usando Haar Cascade
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    # Aplicar supressão de não-máximos para remover bounding boxes sobrepostos
+    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
 
-    # Desenhar retângulos ao redor dos rostos detectados e rastrear o tempo de exposição
-    for (x, y, w, h) in faces:
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+    # Desenhar bounding boxes na imagem original
+    font = cv2.FONT_HERSHEY_PLAIN
 
-        # Calcular o ID da pessoa com base nas coordenadas do retângulo
-        person_id = len(detection_times_faces) + 1
+    for i in range(len(boxes)):
+        if i in indexes:
+            x, y, w, h = boxes[i]
+            label = f"Person: {confidences[i]:.2f}"
 
-        # Rastrear o tempo de detecção para esta pessoa
-        current_time = time.time()
-        if person_id not in detection_times_faces:
-            detection_times_faces[person_id] = {'start_time': current_time, 'total_exposure': 0}
-        else:
-            detection_times_faces[person_id]['total_exposure'] += current_time - detection_times_faces[person_id]['last_detection_time']
-        detection_times_faces[person_id]['last_detection_time'] = current_time
+            # Calcular o tempo de detecção
+            person_id = i + 1
+            if person_id in detection_times:
+                total_exposure = detection_times[person_id]['total_exposure']
+                detection_time = time.time() - detection_times[person_id]['start_time']
+                detection_times[person_id]['last_detection_time'] = time.time()
+            else:
+                total_exposure = 0
+                detection_time = 0
+                detection_times[person_id] = {'start_time': time.time(), 'total_exposure': 0, 'last_detection_time': time.time()}
 
-        # Exibir o tempo ao lado do rosto
-        elapsed_time = current_time - detection_times_faces[person_id]['start_time']
-        hours, remainder = divmod(elapsed_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        time_str = f"{int(hours)}h {int(minutes)}m {int(seconds)}s"
-        cv2.putText(frame, time_str, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            # Exibir o tempo de detecção na parte superior ao lado do nome da pessoa
+            cv2.putText(frame, f"Time: {int(detection_time // 3600):02d}:{int((detection_time % 3600) // 60):02d}:{int(detection_time % 60):02d}", (x, y - 20), font, 1, green_color, 1)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), green_color, 2)
+            cv2.putText(frame, label, (x, y - 5), font, 1, green_color, 1)
 
     # Exibir o número de pessoas detectadas
-    cv2.putText(frame, f"People Count: {len(faces)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(frame, f"People Count: {len(indexes)}", (10, 30), font, 1, (255, 255, 255), 1)
 
     # Exibir o frame
-    cv2.imshow('frame', frame)
+    cv2.imshow("YOLOv4 Detection", frame)
 
     # Sair do loop quando a tecla 'q' for pressionada
     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -122,16 +115,3 @@ while True:
 # Liberar os recursos
 cap.release()
 cv2.destroyAllWindows()
-
-# Convertendo o dicionário para um DataFrame do pandas para rostos
-df_faces = pd.DataFrame.from_dict(detection_times_faces, orient='index')
-
-# Salvando o DataFrame em um arquivo CSV para rostos
-df_faces.to_csv('detected_faces_data.csv', index_label='person_id_faces')
-
-# Convertendo o dicionário para um DataFrame do pandas para objetos
-df_objects = pd.DataFrame.from_dict(detection_times_objects, orient='index')
-
-# Salvando o DataFrame em um arquivo CSV para objetos
-df_objects.to_csv('detected_objects_data.csv', index_label='person_id_objects')
-
