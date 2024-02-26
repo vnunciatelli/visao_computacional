@@ -1,13 +1,9 @@
-# -*- coding: utf-8 -*-
-
+import requests
+import json
 import mediapipe as mp
 import cv2
 import time
 import datetime
-import sys
-
-# Configurar a codificação UTF-8 para a saída padrão
-sys.stdout.reconfigure(encoding='utf-8')
 
 # Inicialização do módulo de detecção facial e de cabeça
 mp_face_detection = mp.solutions.face_detection
@@ -23,7 +19,7 @@ total_unique_heads = 0  # Variável para rastrear o número total de IDs únicos
 
 # Variáveis para controlar o tempo
 start_time = time.time()
-interval_minutes = 1
+interval_minutes = 0.01
 
 while True:
     # Ler o frame da webcam
@@ -84,6 +80,23 @@ while True:
     if time.time() - start_time >= interval_minutes * 60:
         current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f'[{current_time}] Após {interval_minutes} minutos, foram detectadas {total_unique_heads} pessoas.')
+        print(total_unique_heads)
+        
+        # Fazer uma solicitação POST à sua API local
+        dados = {'total_pessoas': str(total_unique_heads),
+                 'data_hora': str(current_time),
+                 }
+        print(dados)
+        url = 'http://localhost/vision/main.php'
+        response = requests.post(url, data= dados)
+        if response.status_code == 200:
+            print("Dados enviados com sucesso para a API.")
+        else:
+            print("Erro ao enviar dados para a API.")
+        
+        print(response.text)
+        print('HTTP response:',response.status_code)
+        
         start_time = time.time()  # Reiniciar o tempo
 
     # Sair do loop quando a tecla 'q' for pressionada
