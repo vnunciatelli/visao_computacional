@@ -19,7 +19,7 @@ total_unique_heads = 0  # Variável para rastrear o número total de IDs únicos
 
 # Variáveis para controlar o tempo
 start_time = time.time()
-interval_minutes = 0.01
+interval_minutes = 0.20
 
 while True:
     # Ler o frame da webcam
@@ -83,12 +83,13 @@ while True:
         print(total_unique_heads)
         
         # Fazer uma solicitação POST à sua API local
-        dados = {'total_pessoas': str(total_unique_heads),
+        dados = {'total_pessoas': total_unique_heads,
                  'data_hora': str(current_time),
+                 'uid': detected_heads  # Enviar o dicionário de cabeças detectadas para a API
                  }
         print(dados)
         url = 'http://localhost/vision/main.php'
-        response = requests.post(url, data= dados)
+        response = requests.post(url, data=dados)
         if response.status_code == 200:
             print("Dados enviados com sucesso para a API.")
         else:
