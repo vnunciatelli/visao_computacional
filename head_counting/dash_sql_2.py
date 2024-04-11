@@ -101,9 +101,14 @@ def update_charts(start_date, n_intervals, end_date):
     df = pd.DataFrame(data_from_api['data'])
     df['data'] = pd.to_datetime(df['data'])
     
+    # Garantir que a end_date seja sempre a data atual
+    end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-    start_date = datetime.strptime(start_date, '%Y-%m-%d')
-    end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    # Calcula a data inicial para garantir que tenhamos os últimos 7 dias
+    start_date = end_date - timedelta(days=6)
+    
+    #start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    
     
     # Filtrar o DataFrame para o intervalo selecionado
     filtered_df = df[(df['data'] >= start_date) & (df['data'] <= end_date)]
@@ -142,7 +147,7 @@ def update_charts(start_date, n_intervals, end_date):
         detection_percentage_24h = (len(filtered_df_24h) / len(df)) * 100
     
     trace_pie = go.Pie(
-        labels=['Detecção', 'Sem Detecção'],
+        labels=['Qtd Detectada', 'Período Sem Detecção'],
         values=[detection_percentage_24h, 100 - detection_percentage_24h],
         hole=0.5,
         marker=dict(colors=['#0000ff', '#B0E0E6']),  # Cores das fatias
