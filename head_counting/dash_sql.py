@@ -1,132 +1,3 @@
-# import dash
-# from dash import dcc, html
-# from dash.dependencies import Input, Output
-# import plotly.graph_objs as go
-# import psycopg2
-# import pandas as pd
-# from datetime import datetime, timedelta
-
-# # Conectar ao banco de dados PostgreSQL
-# conn = psycopg2.connect(
-#     dbname='Vision',
-#     user='postgres',
-#     password="2Smx'P?8[#RA\#9Z",
-#     host='192.168.210.40',
-#     port='5432'
-# )
-
-# # Definir a consulta SQL para selecionar os dados no intervalo de datas especificado
-# query = """
-#     SELECT data::date as data, sum(qtd_person::integer) as qtd_person
-#     FROM (
-#         SELECT datahora::date as data, qtd_person
-#         FROM headcount
-#         WHERE datahora >= '2024-03-25'
-#     ) subquery
-#     GROUP BY data
-#     ORDER BY data
-# """
-
-# # Executar a consulta SQL e carregar os resultados em um DataFrame pandas
-# df = pd.read_sql_query(query, conn)
-
-# # Fechar a conexão com o banco de dados
-# conn.close()
-
-# # Criar o aplicativo Dash
-# app = dash.Dash(__name__)
-
-# # Layout do aplicativo Dash
-# app.layout = html.Div(className='container', style={'backgroundColor': '#ffffff', 'color': '#000000'}, children=[
-#     html.H1('Quantidade de Pessoas Detectadas', className='title', style={'textAlign': 'center'}),
-#     html.Img(src=r'C:\Users\ronaldo.pereira\Downloads\logoeletro.png', style={'width': '150px', 'height': 'auto', 'margin-left': '20px', 'margin-top': '20px'}),
-#     dcc.DatePickerRange(
-#         id='date-picker-range',
-#         start_date=(datetime.now() - timedelta(days=6)).strftime('%Y-%m-%d'),
-#         end_date=datetime.now().strftime('%Y-%m-%d'),
-#         className='date-picker'
-#     ),
-#     dcc.Graph(id='bar-chart', style={'backgroundColor': '#ffffff'}),
-#     dcc.Graph(id='pie-chart', style={'backgroundColor': '#ffffff'}),
-#     html.Div(id='total-people', className='total-people', style={'textAlign': 'center'})
-# ])
-
-# # Callback para atualizar os gráficos com base na seleção de datas
-# @app.callback(
-#     [Output('bar-chart', 'figure'),
-#      Output('pie-chart', 'figure'),
-#      Output('total-people', 'children')],
-#     [Input('date-picker-range', 'start_date'),
-#      Input('date-picker-range', 'end_date')]
-# )
-# def update_charts(start_date, end_date):
-#     # Converter as strings de data para objetos datetime
-#     start_date = datetime.strptime(start_date, '%Y-%m-%d')
-#     end_date = datetime.strptime(end_date, '%Y-%m-%d')
-    
-#     # Garantir que o intervalo de datas selecionado inclua exatamente 7 dias
-#     if (end_date - start_date).days != 7:
-#         start_date = end_date - timedelta(days=7)
-    
-#     start_date_str = start_date.strftime('%Y-%m-%d')
-#     end_date_str = end_date.strftime('%Y-%m-%d')
-    
-#     filtered_df = df[(df['data'] >= start_date.date()) & (df['data'] <= end_date.date())]
-    
-#     # Gráfico de barras
-#     trace_bar = go.Bar(
-#         x=filtered_df['data'],
-#         y=filtered_df['qtd_person'],
-#         text=filtered_df['qtd_person'],
-#         textposition='outside',
-#         marker=dict(color='#8B008B')  # Cor lilás
-#     )
-
-#     layout_bar = go.Layout(
-#         plot_bgcolor='#ffffff',  # Cor de fundo do gráfico
-#         paper_bgcolor='#ffffff',  # Cor de fundo do papel
-#         xaxis=dict(title='Data', color='#000000', showgrid=False, tickformat='%d/%m/%Y', tickangle=-45 ),  # Cor do texto e grade do eixo x
-#         yaxis=dict(title='Quantidade de Pessoas Detectadas', color='#000000'),  # Cor do texto do eixo y
-#         font=dict(color='#000000'),  # Cor do texto
-#         margin=dict(t=50, l=50, r=50, b=50),  # Margens do gráfico
-#     )
-
-#     fig_bar = go.Figure(data=[trace_bar], layout=layout_bar)
-    
-#     # Gráfico de pizza
-#     total_people = filtered_df['qtd_person'].sum()
-#     if total_people == 0:
-#         detection_percentage = 0
-#     else:
-#         detection_percentage = (len(filtered_df) / len(df)) * 100
-    
-#     trace_pie = go.Pie(
-#         labels=['Detecção', 'Sem Detecção'],
-#         values=[detection_percentage, 100 - detection_percentage],
-#         hole=0.5,
-#         marker=dict(colors=['#ff7f0e', '#d62728']),  # Cores das fatias
-#         hoverinfo='label+percent'
-#     )
-
-#     layout_pie = go.Layout(
-#         title='Porcentagem de Detecção',
-#         plot_bgcolor='#ffffff',  # Cor de fundo do gráfico
-#         paper_bgcolor='#ffffff',  # Cor de fundo do papel
-#         font=dict(color='#000000'),  # Cor do texto
-#     )
-
-#     fig_pie = go.Figure(data=[trace_pie], layout=layout_pie)
-    
-#     # Total de pessoas detectadas
-#     total_people_div = html.H2(f'Total de Pessoas Detectadas: {total_people}', style={'color': '#000000'})
-
-#     return fig_bar, fig_pie, total_people_div
-
-
-# # Executar o aplicativo Dash
-# if __name__ == '__main__':
-#     app.run_server(debug=True)
-
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
@@ -135,39 +6,33 @@ import plotly.graph_objs as go
 import psycopg2
 import pandas as pd
 from datetime import datetime, timedelta
+import requests
+import json
+import pytz
 
-# Conectar ao banco de dados PostgreSQL
-conn = psycopg2.connect(
-    dbname='Vision',
-    user='postgres',
-    password="2Smx'P?8[#RA\#9Z",
-    host='192.168.210.40',
-    port='5432'
-)
+# Definir o URL do endpoint
+url = "https://boe-python.eletromidia.com.br/vision/headcount/getall?csrf=334&datahora=2024-03-25"
 
-# Definir a consulta SQL para selecionar os dados no intervalo de datas especificado
-query = """
-    SELECT data::date as data, sum(qtd_person::integer) as qtd_person
-    FROM (
-        SELECT datahora::date as data, qtd_person
-        FROM headcount
-        WHERE datahora >= '2024-03-25'
-    ) subquery
-    GROUP BY data
-    ORDER BY data
-"""
+# Fazer uma solicitação GET para o endpoint e obter os dados
+response = requests.get(url)
 
-# Executar a consulta SQL e carregar os resultados em um DataFrame pandas
-df = pd.read_sql_query(query, conn)
+# 1. Parse dos dados da API
+data_from_api = response.json()
+df = pd.DataFrame(data_from_api['data'])  # Supondo que a API retorna os dados em formato de lista de dicionários
 
-# Fechar a conexão com o banco de dados
-conn.close()
+print(type(df['data']))
+
+# Converter a coluna 'data' para o formato datetime
+df['data'] = pd.to_datetime(df['data'])
+
+# Verificar o tipo de dado após a conversão
+print(df['data'].dtype)
 
 # Criar o aplicativo Dash
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 # Layout do aplicativo Dash
-app.layout = html.Div(className='container-fluid', style={'backgroundColor': '#ffffff', 'width': '100%' ,'height': '100%', 'color': '#000000'}, children=[
+app.layout = html.Div(className='container-fluid', style={'backgroundColor': '#ffffff', 'width': '100%' ,'height': '80%', 'color': '#000000', 'margin': '1%'}, children=[
     dbc.Card([
         dbc.CardBody([
             html.Div(className='header', children=[
@@ -177,15 +42,17 @@ app.layout = html.Div(className='container-fluid', style={'backgroundColor': '#f
             html.Hr(),  # Adiciona uma linha horizontal para separar o cabeçalho do conteúdo principal
             dcc.DatePickerRange(
                 id='date-picker-range',
-                start_date=(datetime.now() - timedelta(days=6)).strftime('%Y-%m-%d'),
-                end_date=datetime.now().strftime('%Y-%m-%d'),
+                start_date=(datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'),
+                end_date = datetime.now().strftime('%Y-%m-%d'),
+                display_format='YYYY-MM-DD',
                 className='date-picker'
             ),
+            
             dbc.Card([
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col(
-                            dcc.Graph(id='bar-chart', style={'height': '500px', 'margin-top': '5px'}), 
+                            dcc.Graph(id='bar-chart', style={'height': '400px', 'margin-top': '5px'}), 
                             width=12
                         )
                     ])
@@ -193,43 +60,55 @@ app.layout = html.Div(className='container-fluid', style={'backgroundColor': '#f
             ], style={'margin': '20px', 'border': '1px solid' }),
             dbc.Card([
                 dbc.CardBody([
-                    dbc.Row([
+                    dbc.Row(
+            [
                         dbc.Col(
-                            dcc.Graph(id='pie-chart', style={'height': '400px'}), 
-                            width=6
-                        ),
+                            dcc.Graph(id='pie-chart', style={'height': '200px', 'margin': 'auto'}), 
+                            width={'size': 6, 'offset': 1}
+                ),
                         dbc.Col(
                             html.Div(id='total-people', className='total-people', style={'textAlign': 'center'}), 
                             width=6
-                        )
-                    ])
-                ])
-            ], style={'margin': '20px', 'border': '1px solid' })
+                )
+            ],
+            justify='center',  # Centraliza os elementos horizontalmente dentro da linha
+            align='center'  # Centraliza os elementos verticalmente dentro da linha
+        )                                       
+    ])
+], style={'margin': '20px', 'border': '1px solid' })
+
         ])
-    ], style={'margin': '20px', 'border': '1px solid'})
+    ], style={'margin': '20px', 'border': '1px solid'}),
+    # Adicione o componente Interval para atualização automática
+    dcc.Interval(
+        id='interval-component',
+        interval=1*60*1000,  # tempo em milissegundos, neste caso, 5 minutos
+        n_intervals=0
+    )
 ])
 
-# Callback para atualizar os gráficos com base na seleção de datas
 @app.callback(
     [Output('bar-chart', 'figure'),
      Output('pie-chart', 'figure'),
      Output('total-people', 'children')],
     [Input('date-picker-range', 'start_date'),
+     Input('interval-component', 'n_intervals'),
      Input('date-picker-range', 'end_date')]
 )
-def update_charts(start_date, end_date):
-    # Converter as strings de data para objetos datetime
-    start_date = datetime.strptime(start_date, '%Y-%m-%d')
-    end_date = datetime.strptime(end_date, '%Y-%m-%d')
+def update_charts(start_date, n_intervals, end_date):
+    response = requests.get(url)
+    data_from_api = response.json()
+    df = pd.DataFrame(data_from_api['data'])
+    df['data'] = pd.to_datetime(df['data'])
     
-    # Garantir que o intervalo de datas selecionado inclua exatamente 7 dias
-    if (end_date - start_date).days != 6:
-        start_date = end_date - timedelta(days=7)
+    end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-    start_date_str = start_date.strftime('%Y-%m-%d')
-    end_date_str = end_date.strftime('%Y-%m-%d')
+    start_date = end_date - timedelta(days=6)
+    #start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    #end_date = datetime.strptime(end_date, '%Y-%m-%d')
     
-    filtered_df = df[(df['data'] >= start_date.date()) & (df['data'] <= end_date.date())]
+    # Filtrar o DataFrame para o intervalo selecionado
+    filtered_df = df[(df['data'] >= start_date) & (df['data'] <= end_date)]
     
     # Gráfico de barras
     trace_bar = go.Bar(
@@ -237,49 +116,75 @@ def update_charts(start_date, end_date):
         y=filtered_df['qtd_person'],
         text=filtered_df['qtd_person'],
         textposition='outside',
-        marker=dict(color='#8B008B')  # Cor lilás
+        marker=dict(color='#ff7f0e')  # Cor laranja
     )
 
     layout_bar = go.Layout(
+        title='Pessoas Detectadas nos Últimos 7 Dias',
+        title_x=0.5,  # Centraliza o título horizontalmente
         plot_bgcolor='#ffffff',  # Cor de fundo do gráfico
         paper_bgcolor='#ffffff',  # Cor de fundo do papel
         xaxis=dict(title='Data', color='#000000', showgrid=False, tickformat='%d/%m/%Y', tickangle=-45),  # Cor do texto e grade do eixo x
         yaxis=dict(title='Quantidade de Pessoas Detectadas', color='#000000'),  # Cor do texto do eixo y
         font=dict(color='#000000'),  # Cor do texto
         margin=dict(t=50, l=50, r=50, b=50),  # Margens do gráfico
-    )
+        title_font=dict(size=22)  # Tamanho do título
+)
 
     fig_bar = go.Figure(data=[trace_bar], layout=layout_bar)
     
+    # Filtrar o DataFrame para as últimas 24 horas
+    filtered_df_24h = df[(df['data'] >= (datetime.now() - timedelta(days=1))) & (df['data'] <= datetime.now())]
+    
     # Gráfico de pizza
-    total_people = filtered_df['qtd_person'].sum()
-    if total_people == 0:
-        detection_percentage = 0
+    total_people_24h = filtered_df_24h['qtd_person'].sum()
+    if total_people_24h == 0:
+        detection_percentage_24h = 0
     else:
-        detection_percentage = (len(filtered_df) / len(df)) * 100
+        detection_percentage_24h = (len(filtered_df_24h) / len(df)) * 100
     
     trace_pie = go.Pie(
-        labels=['Detecção', 'Sem Detecção'],
-        values=[detection_percentage, 100 - detection_percentage],
+        labels=['Qtd Detectada', 'Período Sem Detecção'],
+        values=[detection_percentage_24h, 100 - detection_percentage_24h],
         hole=0.5,
-        marker=dict(colors=['#ff7f0e', '#d62728']),  # Cores das fatias
-        hoverinfo='label+percent'
+        marker=dict(colors=['#0000ff', '#B0E0E6']),  # Cores das fatias
+        hoverinfo='label+percent',
+        legendgroup="legend",
+        name='Detecção e Sem Detecção'
     )
 
     layout_pie = go.Layout(
-        title='Porcentagem de Detecção',
+        title='Porcentagem de Detecção nas últimas 24 horas',
+        title_x=0,  # Define a posição horizontal do título como o centro
+        title_y=0.95,  # Define a posição vertical do título como a parte superior
+        title_xanchor='left',  # Ancora horizontalmente o título ao centro
+        title_yanchor='middle',  # Ancora verticalmente o título à parte superior
+        title_font=dict(size=22),  # Define o tamanho da fonte do título como 30
         plot_bgcolor='#ffffff',  # Cor de fundo do gráfico
         paper_bgcolor='#ffffff',  # Cor de fundo do papel
         font=dict(color='#000000'),  # Cor do texto
+        margin=dict(t=60, l=100, r=0, b=0),  # Adiciona margem superior para acomodar o título
+        legend=dict(
+            x=1,  # Define a posição horizontal da legenda como o canto superior direito do gráfico
+            y=0,  # Define a posição vertical da legenda como a parte inferior do gráfico
+            tracegroupgap=10,  # Espaçamento entre as entradas da legenda
+            orientation='v',  # Define a orientação da legenda como vertical
+            font=dict(size=14)  # Define o tamanho da fonte da legenda como 14
+        )
     )
 
     fig_pie = go.Figure(data=[trace_pie], layout=layout_pie)
     
-    # Total de pessoas detectadas
-    total_people_div = html.H2(f'Total de Pessoas Detectadas: {total_people}', style={'color': '#000000'})
+    # Total de pessoas detectadas nas últimas 24 horas
+    total_people_div_24h = html.H2(
+    f'Pessoas Detectadas nas Últimas 24 horas: {total_people_24h}',
+    style={'color': '#000000', 'font-size': '18px'}
+)
 
-    return fig_bar, fig_pie, total_people_div
+
+    return fig_bar, fig_pie, total_people_div_24h
 
 
 # Executar o aplicativo Dash
-if __name__ == '__main__':    app.run_server(debug=True)
+if __name__ == '__main__':
+   app.run_server(debug=True)
