@@ -1,3 +1,7 @@
+#!/usr/bin/python
+import fcntl
+import socket
+import struct
 import cv2
 import numpy as np
 import time
@@ -17,11 +21,11 @@ if not cap.isOpened():
 api_url = 'https://boe-python.eletromidia.com.br/vision/headcount/put'
 
 # Carregar o modelo YOLO pré-treinado
-net = cv2.dnn.readNet(r'C:\Users\ronaldo.pereira\Documents\2024\01-visao-computacional\head_counting\vision_computer\yolov4.weights', 
-                      r'C:\Users\ronaldo.pereira\Documents\2024\01-visao-computacional\head_counting\vision_computer\yolov4.cfg')
+net = cv2.dnn.readNet(r'/home/elemidia/Documentos/Visao_Computacional/yolov4.weights', 
+                      r'/home/elemidia/Documentos/Visao_Computacional/yolov4.cfg')
 
 # Carregar as classes de objetos
-with open(r'C:\Users\ronaldo.pereira\Documents\2024\01-visao-computacional\head_counting\vision_computer\coco.names', "r") as f:
+with open(r'/home/elemidia/Documentos/Visao_Computacional/coco.names', "r") as f:
     classes = f.read().strip().split("\n")
 
 # Variáveis para controlar o tempo
@@ -50,6 +54,11 @@ def count_unique_people(detected_people):
         if unique:
             unique_people.add(person1)
     return len(unique_people)
+
+# Definir o tamanho da janela
+cv2.namedWindow('YOLOv4 + Face Detection', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('YOLOv4 + Face Detection', 600, 400)
+
 
 while True:
     # Ler o frame da webcam
@@ -117,12 +126,20 @@ while True:
         hash_md5.update(current_datetime.encode('utf-8'))
         md5_hash = hash_md5.hexdigest()
 
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', bytes('enp1s0', 'utf-8')[:15]))
+        nuc_mac = ''.join('%02x' % b for b in info[18:24])
+
+
+        
+
         # Fazer a chamada à API com os dados relevantes
         payload = {
             'csrf': md5_hash,
             'qtd_person': total_unique_people,
             'datahora': current_datetime,
-            'artifact': 'face'
+            'artifact': 'face',
+            'nucmac' : nuc_mac
         }
         response = requests.post(api_url, data=payload)
         if response.status_code == 200:
